@@ -1,0 +1,16 @@
+{
+  "name": "reason",
+  "version": "0.1.0",
+  "description": "Local-first reasoning repository for worldview revision",
+  "type": "module",
+  "bin": {
+    "reason": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun src/cli.ts",
+    "build": "bun build src/cli.ts --compile --outfile reason"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}
