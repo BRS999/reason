@@ -126,13 +126,16 @@ When an assertion is tested — an experiment concludes, a prediction resolves, 
 **Prerequisites:** [Bun](https://bun.sh) v1.0+
 
 ```sh
-# 1. Clone and build
+# 1. Clone and install
 git clone https://github.com/yourname/reason
 cd reason
 bun install
-bun build src/cli.ts --compile --outfile reason
 
-# 2. Add to PATH
+# 2. Build (bundle to JS) or compile (standalone binary)
+bun run build      # → dist/cli.js
+bun run compile    # → ./reason  (self-contained executable, no Bun required)
+
+# 3. Add the binary to PATH
 ln -s $(pwd)/reason ~/.local/bin/reason
 
 # 3. Initialise a reasoning repository in any project directory
