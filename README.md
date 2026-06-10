@@ -3,7 +3,7 @@
 
   <h1>reason</h1>
 
-  <p><strong>A version-controlled assertion store for AI agents and the humans who work with them.</strong></p>
+  <p><strong>A version controlled assertion store for AI agents and the humans who work with them.</strong></p>
 
   ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
   ![Bun](https://img.shields.io/badge/runtime-Bun-black)
