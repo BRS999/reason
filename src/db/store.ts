@@ -18,25 +18,30 @@ function repoPath(...segments: string[]): string {
   return join(process.cwd(), REPO_DIR, ...segments);
 }
 
-const EVENTS_PATH   = () => repoPath("events.jsonl");
-const SNAPSHOT_PATH = () => repoPath("snapshot.json");
-const LOCK_PATH     = () => repoPath("write.lock");
+export const eventsPath   = () => repoPath("events.jsonl");
+export const snapshotPath = () => repoPath("snapshot.json");
+const LOCK_PATH           = () => repoPath("write.lock");
 
 // Cached snapshot from the last readStore — used to diff on write
 let _lastSnapshot: Store | null = null;
 
 export function isInitialized(): boolean {
-  const ep = EVENTS_PATH();
-  const sp = SNAPSHOT_PATH();
+  const ep = eventsPath();
+  const sp = snapshotPath();
   return (existsSync(ep) && statSync(ep).size > 0) || existsSync(sp);
 }
 
 export async function readStore(): Promise<Store> {
-  if (!existsSync(SNAPSHOT_PATH())) {
+  if (!existsSync(snapshotPath())) {
     throw new Error("No reasoning repository found. Run `reason init` first.");
   }
 
   const store = readSnapshot();
+
+  if (store.assertions.length > 0 && "status" in store.assertions[0]) {
+    throw new Error("Store format is outdated. Run `reason migrate` to upgrade.");
+  }
+
   _lastSnapshot = structuredClone(store);
   return store;
 }
@@ -51,7 +56,7 @@ export async function writeStore(store: Store): Promise<void> {
 
     if (eventsToAppend.length > 0) {
       const lines = eventsToAppend.map(e => JSON.stringify(e)).join("\n") + "\n";
-      appendFileSync(EVENTS_PATH(), lines, "utf8");
+      appendFileSync(eventsPath(), lines, "utf8");
 
       for (const event of eventsToAppend) {
         applyEvent(latest, event);
@@ -67,13 +72,13 @@ export async function initStore(): Promise<void> {
   const dir = repoPath();
   mkdirSync(dir, { recursive: true });
 
-  if (existsSync(EVENTS_PATH()) || existsSync(SNAPSHOT_PATH())) {
+  if (existsSync(eventsPath()) || existsSync(snapshotPath())) {
     throw new Error("Repository already initialized.");
   }
 
   const empty = emptyStore();
-  writeFileSync(EVENTS_PATH(), "", "utf8");
-  writeFileSync(SNAPSHOT_PATH(), JSON.stringify(empty, null, 2), "utf8");
+  writeFileSync(eventsPath(), "", "utf8");
+  writeFileSync(snapshotPath(), JSON.stringify(empty, null, 2), "utf8");
 }
 
 export function emptyStore(): Store {
@@ -88,13 +93,13 @@ export function emptyStore(): Store {
 }
 
 function readSnapshot(): Store {
-  return JSON.parse(readFileSync(SNAPSHOT_PATH(), "utf8")) as Store;
+  return JSON.parse(readFileSync(snapshotPath(), "utf8")) as Store;
 }
 
 function writeSnapshot(store: Store): void {
-  const tmpPath = `${SNAPSHOT_PATH()}.${process.pid}.tmp`;
+  const tmpPath = `${snapshotPath()}.${process.pid}.tmp`;
   writeFileSync(tmpPath, JSON.stringify(store, null, 2), "utf8");
-  renameSync(tmpPath, SNAPSHOT_PATH());
+  renameSync(tmpPath, snapshotPath());
 }
 
 function withWriteLock<T>(fn: () => T): T {
