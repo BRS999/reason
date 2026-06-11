@@ -69,25 +69,54 @@ async function main() {
 function printHelp() {
   console.log(`reason — reasoning repository
 
-Usage: reason <command> [args]
+Usage: reason <command> [options]
 
-Commands:
-  init        Initialize a new repository in .reason/
-  assert      Add a new assertion to the worldview
-  observe     Record a new observation
-  patch       Propose a change to an assertion
-  review      Approve or reject pending patches
-  commit      Apply approved patches to the worldview
-  log         Show commit history
-  diff [id]   Show what changed in last commit (or specific commit)
-  query <kw>  Search assertions, commits, and observations  [--json]
-  eval [id]   Record an outcome and evaluate calibration
-  status      Show current worldview summary               [--json]
-  calibration Show calibration report across all outcomes  [--json]
-  failures    Show repeatedly refuted assertions           [--json]
-  act [id]    Record an action taken on an assertion       [--list]
-  history <id> Show full lineage of an assertion            [--json]
-  migrate     Upgrade store format to latest version
+Build your worldview:
+  init                         Initialize a new repository in .reason/
+  assert                       Add a new assertion
+    --subject <s>              Subject of the claim
+    --relation <r>             Relation (predicts, causes, prevents, …)
+    --object <o>               Object of the claim
+    --confidence <0-1>         Confidence score
+    --evidence <text>          Supporting evidence
+  observe                      Record a raw observation
+    --content <text>           Observation content
+    --source <text>            Source (url, document, experiment, …)
+
+Revise and commit:
+  patch <id>                   Propose a revision to an assertion
+    --confidence <0-1>         New confidence score
+    --append-evidence <text>   Append to existing evidence
+    --replace-evidence <text>  Replace existing evidence
+    --observation <id>         Link to a triggering observation
+    --reason <text>            Rationale for the change
+  review                       Approve or reject pending patches
+    --approve-all              Auto-approve all pending patches
+  commit                       Apply approved patches (prompts for message)
+
+Act and evaluate:
+  act <id>                     Record an action taken on an assertion
+    --type <type>              Type: decision, experiment, publish, pass, …
+    --description <text>       What was done
+    --meta <key=value>         Attach metadata (repeatable)
+    --meta-json <json>         Attach metadata as JSON object
+  act --list                   Show all open actions  [--json]
+  eval <id>                    Record an outcome against an assertion
+    --result <c|r|a>           confirmed, refuted, or ambiguous
+    --description <text>       What happened
+    --delta <number>           Manual calibration delta (optional)
+
+Inspect:
+  status                       Current worldview summary  [--json]
+  log                          Full commit history  [--json]
+  diff [id]                    Changes in last commit (or specific commit id)
+  history <id>                 Full version lineage of an assertion  [--json]
+  query <keyword>              Search assertions, observations, commits  [--json] [--explain]
+  calibration                  Calibration report across all outcomes  [--json]
+  failures                     Assertions with refuted outcomes  [--json]
+
+Maintenance:
+  migrate                      Upgrade store to latest format (backs up first)
 `);
 }
 

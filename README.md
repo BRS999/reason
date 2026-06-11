@@ -186,7 +186,7 @@ Over time, `reason calibration` reveals whether 70% assertions are hitting 70% o
 | Command | What it does |
 |---------|-------------|
 | `reason status [--json]` | Current worldview — assertions, patches, open actions, calibration |
-| `reason query <kw> [--json]` | Search across assertions, observations, commits, and actions |
+| `reason query <kw> [--json] [--explain]` | Search across assertions, observations, commits, and actions |
 | `reason log` | Full commit history |
 | `reason diff [id]` | What changed in the last commit (or a specific one) |
 | `reason history <id> [--json]` | Full version lineage of an assertion — every version with outcomes and commit messages |
