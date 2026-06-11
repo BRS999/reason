@@ -4,6 +4,34 @@ import { prompt } from "../ui.ts";
 export async function review(args: string[]) {
   const store = await readStore();
   const approveAll = args.includes("--approve-all");
+  const rejectAll = args.includes("--reject-all");
+  const rejectId = args.includes("--reject") ? args[args.indexOf("--reject") + 1] : undefined;
+  const approveId = args.includes("--approve") ? args[args.indexOf("--approve") + 1] : undefined;
+
+  // Non-interactive single-patch operations
+  if (rejectId) {
+    const patch = store.patches.find((p) => p.id === rejectId && p.status === "pending");
+    if (!patch) {
+      console.error(`No pending patch found with id: ${rejectId}`);
+      process.exit(1);
+    }
+    patch.status = "rejected";
+    await writeStore(store);
+    console.log(`Rejected: ${rejectId}`);
+    return;
+  }
+
+  if (approveId) {
+    const patch = store.patches.find((p) => p.id === approveId && p.status === "pending");
+    if (!patch) {
+      console.error(`No pending patch found with id: ${approveId}`);
+      process.exit(1);
+    }
+    patch.status = "approved";
+    await writeStore(store);
+    console.log(`Approved: ${approveId}. Run \`reason commit\` to apply.`);
+    return;
+  }
 
   const pending = store.patches.filter((p) => p.status === "pending");
   if (pending.length === 0) {
@@ -29,6 +57,12 @@ export async function review(args: string[]) {
     if (approveAll) {
       patch.status = "approved";
       console.log("Auto-approved (--approve-all).");
+      continue;
+    }
+
+    if (rejectAll) {
+      patch.status = "rejected";
+      console.log("Auto-rejected (--reject-all).");
       continue;
     }
 

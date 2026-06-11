@@ -90,8 +90,11 @@ Revise and commit:
     --replace-evidence <text>  Replace existing evidence
     --observation <id>         Link to a triggering observation
     --reason <text>            Rationale for the change
-  review                       Approve or reject pending patches
-    --approve-all              Auto-approve all pending patches
+  review                       Approve or reject pending patches interactively
+    --approve-all              Approve all pending patches
+    --approve <id>             Approve a specific patch by id
+    --reject-all               Reject all pending patches
+    --reject <id>              Reject a specific patch by id
   commit                       Apply approved patches
     --message <text>           Commit message (skips prompt if provided)
 

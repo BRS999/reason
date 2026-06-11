@@ -46,6 +46,64 @@ describe("review --approve-all", () => {
   });
 });
 
+describe("review --reject-all", () => {
+  it("rejects all pending patches", async () => {
+    mockStore.current = makeStore({
+      assertions: [makeAssertion()],
+      patches: [makePatch(), makePatch({ id: "ptch_2" })],
+    });
+
+    await review(["--reject-all"]);
+
+    const statuses = writtenStore.current!.patches.map((p) => p.status);
+    expect(statuses).toEqual(["rejected", "rejected"]);
+  });
+});
+
+describe("review --approve <id>", () => {
+  it("approves a specific pending patch by id", async () => {
+    mockStore.current = makeStore({
+      assertions: [makeAssertion()],
+      patches: [makePatch({ id: "ptch_target" }), makePatch({ id: "ptch_other" })],
+    });
+
+    await review(["--approve", "ptch_target"]);
+
+    const statuses = writtenStore.current!.patches.map((p) => p.status);
+    expect(statuses).toEqual(["approved", "pending"]);
+  });
+
+  it("exits with error when patch id not found or not pending", async () => {
+    mockStore.current = makeStore({ patches: [makePatch({ id: "ptch_1", status: "committed" })] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+
+    await expect(review(["--approve", "ptch_nope"])).rejects.toThrow("exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("review --reject <id>", () => {
+  it("rejects a specific pending patch by id", async () => {
+    mockStore.current = makeStore({
+      assertions: [makeAssertion()],
+      patches: [makePatch({ id: "ptch_target" }), makePatch({ id: "ptch_other" })],
+    });
+
+    await review(["--reject", "ptch_target"]);
+
+    const statuses = writtenStore.current!.patches.map((p) => p.status);
+    expect(statuses).toEqual(["rejected", "pending"]);
+  });
+
+  it("exits with error when patch id not found or not pending", async () => {
+    mockStore.current = makeStore({ patches: [] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+
+    await expect(review(["--reject", "ptch_nope"])).rejects.toThrow("exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
+
 describe("review interactive", () => {
   it("approves on 'a'", async () => {
     mockStore.current = makeStore({
