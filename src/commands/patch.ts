@@ -1,6 +1,6 @@
 import { readStore, writeStore } from "../db/store.ts";
 import { newId, now } from "../db/id.ts";
-import { prompt, selectFrom, displayAssertion } from "../ui.ts";
+import { prompt, displayAssertion } from "../ui.ts";
 import type { PatchChange } from "../types.ts";
 
 function flag(args: string[], name: string): string | undefined {
@@ -22,6 +22,11 @@ export async function patch(args: string[]) {
 
   console.log("Propose an epistemic patch\n");
 
+  if (!idArg && !process.stdin.isTTY) {
+    console.error("Error: assertion ID required. Usage: reason patch <assertion-id> [--confidence X] [--status S] [--append-evidence E] [--reason R]");
+    console.error("  Find IDs with: reason status --json");
+    process.exit(1);
+  }
   let assertion = idArg ? active.find((a) => a.id === idArg) : undefined;
   if (idArg && !assertion) {
     console.error(`No active assertion found with id: ${idArg}`);
@@ -37,17 +42,6 @@ export async function patch(args: string[]) {
   const obsFlag = flag(args, "--observation");
   let observationId: string | null = obsFlag ?? null;
 
-  if (!obsFlag && store.observations.length > 0) {
-    const linkObs = await prompt("\nLink to an observation? (y/n): ");
-    if (linkObs.trim().toLowerCase() === "y") {
-      const obs = await selectFrom(
-        store.observations.slice(-10).reverse(),
-        (o) => `${o.id}  ${o.content.slice(0, 60)}`,
-        "Select observation"
-      );
-      observationId = obs.id;
-    }
-  }
 
   console.log("\nWhat would you like to change? (leave blank to skip)");
 
