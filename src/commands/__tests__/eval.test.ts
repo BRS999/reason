@@ -74,14 +74,10 @@ describe("eval_", () => {
     expect(writtenStore.current!.outcomes[0].calibration_delta).toBe(-0.1);
   });
 
-  it("resolves linked open action", async () => {
+  it("auto-resolves the first open action on the assertion", async () => {
     const a = makeAssertion();
     const action = makeAction({ assertion_id: a.id });
     mockStore.current = makeStore({ assertions: [a], actions: [action] });
-
-    // prompt: link action? y, then selectFrom returns action
-    mockPrompt.mockResolvedValueOnce("y");
-    mockSelectFrom.mockResolvedValueOnce(action);
 
     await eval_([a.id, "--description", "confirmed", "--result", "c"]);
 
@@ -102,27 +98,26 @@ describe("eval_", () => {
     expect(writtenStore.current).toBeNull();
   });
 
-  it("uses interactive selector when no id arg", async () => {
+  it("exits when no assertion id is provided", async () => {
     const a = makeAssertion();
     mockStore.current = makeStore({ assertions: [a] });
-    mockSelectFrom.mockResolvedValueOnce(a);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
 
-    await eval_(["--description", "confirmed", "--result", "c"]);
+    await expect(eval_(["--description", "confirmed", "--result", "c"])).rejects.toThrow("exit");
 
-    expect(writtenStore.current!.outcomes[0].assertion_id).toBe(a.id);
+    exitSpy.mockRestore();
   });
 
-  it("displays action metadata in the open-actions block", async () => {
+  it("logs auto-resolve message when open action exists", async () => {
     const a = makeAssertion();
-    const action = makeAction({ assertion_id: a.id, metadata: { shares: 10, stop: 405 } });
+    const action = makeAction({ assertion_id: a.id, description: "Short GLD" });
     mockStore.current = makeStore({ assertions: [a], actions: [action] });
-    mockPrompt.mockResolvedValueOnce("n");
     const logs: string[] = [];
     vi.spyOn(console, "log").mockImplementation((s) => logs.push(String(s)));
 
     await eval_([a.id, "--description", "confirmed", "--result", "c"]);
 
-    expect(logs.some((l) => l.includes("shares"))).toBe(true);
+    expect(logs.some((l) => l.includes("Auto-resolving"))).toBe(true);
   });
 
   it("uses prompt for description and result when flags are absent", async () => {
@@ -139,15 +134,14 @@ describe("eval_", () => {
     expect(outcome.result).toBe("confirmed");
   });
 
-  it("does not resolve action when user declines", async () => {
+  it("does not resolve action when assertion has no open actions", async () => {
     const a = makeAssertion();
-    const action = makeAction({ assertion_id: a.id });
+    const action = makeAction({ assertion_id: a.id, status: "resolved" });
     mockStore.current = makeStore({ assertions: [a], actions: [action] });
-    mockPrompt.mockResolvedValueOnce("n");
 
     await eval_([a.id, "--description", "confirmed", "--result", "c"]);
 
-    expect(writtenStore.current!.actions[0].status).toBe("open");
+    expect(writtenStore.current!.outcomes[0].action_id).toBeNull();
   });
 
   it("exits on invalid result code", async () => {
