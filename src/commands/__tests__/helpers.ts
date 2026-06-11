@@ -16,14 +16,15 @@ export function makeStore(overrides: Partial<Store> = {}): Store {
 export function makeAssertion(overrides: Partial<Assertion> = {}): Assertion {
   return {
     id: "asr_1",
+    parent_id: null,
+    root_id: "asr_1",
+    version: 1,
     subject: "US inflation",
     relation: "is",
     object: "decelerating",
     confidence: 0.7,
     evidence: "3 consecutive below-consensus CPI prints",
-    status: "active",
     created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
 }

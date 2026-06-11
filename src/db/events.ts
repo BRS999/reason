@@ -10,15 +10,14 @@ import { now } from "./id.ts";
 // ---------------------------------------------------------------------------
 
 export type StoreEvent =
-  | { type: "assertion_created";      ts: string; payload: Assertion }
-  | { type: "assertion_updated";      ts: string; payload: { id: string; before: Partial<Assertion>; after: Partial<Assertion> } }
-  | { type: "observation_added";      ts: string; payload: Observation }
-  | { type: "patch_proposed";         ts: string; payload: EpistemicPatch }
-  | { type: "patch_status_changed";   ts: string; payload: { id: string; from: PatchStatus; to: PatchStatus } }
-  | { type: "commit_created";         ts: string; payload: Commit }
-  | { type: "action_opened";          ts: string; payload: Action }
-  | { type: "action_status_changed";  ts: string; payload: { id: string; from: ActionStatus; to: ActionStatus; outcome_id?: string | null; resolved_at?: string | null } }
-  | { type: "outcome_recorded";       ts: string; payload: Outcome };
+  | { type: "assertion_created";     ts: string; payload: Assertion }
+  | { type: "observation_added";     ts: string; payload: Observation }
+  | { type: "patch_proposed";        ts: string; payload: EpistemicPatch }
+  | { type: "patch_status_changed";  ts: string; payload: { id: string; from: PatchStatus; to: PatchStatus } }
+  | { type: "commit_created";        ts: string; payload: Commit }
+  | { type: "action_opened";         ts: string; payload: Action }
+  | { type: "action_status_changed"; ts: string; payload: { id: string; from: ActionStatus; to: ActionStatus; outcome_id?: string | null; resolved_at?: string | null } }
+  | { type: "outcome_recorded";      ts: string; payload: Outcome };
 
 // ---------------------------------------------------------------------------
 // Diff — produces events describing what changed between two store snapshots
@@ -28,17 +27,11 @@ export function diffStores(before: Store, after: Store): StoreEvent[] {
   const events: StoreEvent[] = [];
   const t = now();
 
-  // Assertions
-  const beforeAssertions = new Map(before.assertions.map(a => [a.id, a]));
+  // Assertions are immutable — only ever created, never updated
+  const beforeAssertionIds = new Set(before.assertions.map(a => a.id));
   for (const a of after.assertions) {
-    const old = beforeAssertions.get(a.id);
-    if (!old) {
+    if (!beforeAssertionIds.has(a.id)) {
       events.push({ type: "assertion_created", ts: t, payload: a });
-    } else if (assertionChanged(old, a)) {
-      events.push({
-        type: "assertion_updated", ts: t,
-        payload: { id: a.id, before: assertionDelta(old, a), after: assertionDelta(a, old) },
-      });
     }
   }
 
@@ -116,11 +109,6 @@ export function applyEvent(store: Store, event: StoreEvent): void {
     case "assertion_created":
       store.assertions.push(event.payload);
       break;
-    case "assertion_updated": {
-      const idx = store.assertions.findIndex(a => a.id === event.payload.id);
-      if (idx !== -1) Object.assign(store.assertions[idx], event.payload.after);
-      break;
-    }
     case "observation_added":
       store.observations.push(event.payload);
       break;
@@ -151,23 +139,4 @@ export function applyEvent(store: Store, event: StoreEvent): void {
       store.outcomes.push(event.payload);
       break;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function assertionChanged(a: Assertion, b: Assertion): boolean {
-  return a.confidence !== b.confidence || a.status !== b.status ||
-    a.evidence !== b.evidence || a.subject !== b.subject ||
-    a.relation !== b.relation || a.object !== b.object;
-}
-
-function assertionDelta(source: Assertion, other: Assertion): Partial<Assertion> {
-  const delta: Partial<Assertion> = {};
-  const keys: (keyof Assertion)[] = ["subject", "relation", "object", "confidence", "status", "evidence", "updated_at"];
-  for (const k of keys) {
-    if (source[k] !== other[k]) (delta as Record<string, unknown>)[k] = source[k];
-  }
-  return delta;
 }

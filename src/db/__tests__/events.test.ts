@@ -10,14 +10,15 @@ function emptyStore(): Store {
 function makeAssertion(overrides: Partial<Assertion> = {}): Assertion {
   return {
     id: "asr_1",
+    parent_id: null,
+    root_id: "asr_1",
+    version: 1,
     subject: "inflation",
     relation: "is",
     object: "decelerating",
     confidence: 0.7,
     evidence: "3 consecutive below-consensus CPI prints",
-    status: "active",
     created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -46,16 +47,15 @@ describe("diffStores — assertions", () => {
     expect((events[0] as any).payload.id).toBe("asr_1");
   });
 
-  it("emits assertion_updated when confidence changes", () => {
-    const a = makeAssertion({ confidence: 0.7 });
+  it("emits assertion_created for a successor assertion (new id)", () => {
+    const a = makeAssertion({ id: "asr_1", confidence: 0.7 });
+    const successor = makeAssertion({ id: "asr_2", parent_id: "asr_1", root_id: "asr_1", version: 2, confidence: 0.85 });
     const before = { ...emptyStore(), assertions: [a] };
-    const after = { ...emptyStore(), assertions: [{ ...a, confidence: 0.85 }] };
+    const after = { ...emptyStore(), assertions: [a, successor] };
     const events = diffStores(before, after);
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe("assertion_updated");
-    const payload = (events[0] as any).payload;
-    expect(payload.before.confidence).toBe(0.7);
-    expect(payload.after.confidence).toBe(0.85);
+    expect(events[0].type).toBe("assertion_created");
+    expect((events[0] as any).payload.id).toBe("asr_2");
   });
 
   it("emits no events when assertion is unchanged", () => {
@@ -64,12 +64,11 @@ describe("diffStores — assertions", () => {
     expect(diffStores(store, store)).toHaveLength(0);
   });
 
-  it("emits assertion_updated when status changes", () => {
-    const a = makeAssertion({ status: "active" });
+  it("emits no events when the same assertion exists in both stores", () => {
+    const a = makeAssertion();
     const before = { ...emptyStore(), assertions: [a] };
-    const after = { ...emptyStore(), assertions: [{ ...a, status: "invalidated" as const }] };
-    const events = diffStores(before, after);
-    expect(events[0].type).toBe("assertion_updated");
+    const after = { ...emptyStore(), assertions: [a] };
+    expect(diffStores(before, after)).toHaveLength(0);
   });
 });
 
@@ -185,13 +184,15 @@ describe("replayEvents", () => {
     expect(replayed.assertions[0].id).toBe("asr_1");
   });
 
-  it("applies assertion_updated on top of assertion_created", () => {
-    const a = makeAssertion({ confidence: 0.7 });
-    const s1 = { ...emptyStore(), assertions: [a] };
-    const s2 = { ...emptyStore(), assertions: [{ ...a, confidence: 0.9 }] };
+  it("replays two assertion_created events as two entries", () => {
+    const a1 = makeAssertion({ id: "asr_1", confidence: 0.7 });
+    const a2 = makeAssertion({ id: "asr_2", parent_id: "asr_1", root_id: "asr_1", version: 2, confidence: 0.9 });
+    const s1 = { ...emptyStore(), assertions: [a1] };
+    const s2 = { ...emptyStore(), assertions: [a1, a2] };
     const events = [...diffStores(emptyStore(), s1), ...diffStores(s1, s2)];
     const replayed = replayEvents(events);
-    expect(replayed.assertions[0].confidence).toBe(0.9);
+    expect(replayed.assertions).toHaveLength(2);
+    expect(replayed.assertions[1].confidence).toBe(0.9);
   });
 
   it("applies patch_status_changed correctly", () => {
@@ -220,9 +221,8 @@ describe("replayEvents — commits, actions, outcomes", () => {
     const commit = {
       id: "cmt_1",
       patch_id: "ptch_1",
-      assertion_id: a.id,
-      snapshot_before: a,
-      snapshot_after: { ...a, confidence: 0.9 },
+      from_assertion_id: a.id,
+      to_assertion_id: "asr_2",
       message: "updated confidence",
       created_at: "2026-01-01T00:00:00.000Z",
     };
@@ -260,16 +260,16 @@ describe("replayEvents — commits, actions, outcomes", () => {
 });
 
 describe("applyEvent — unknown ids are no-ops", () => {
-  it("does not throw when assertion_updated targets missing id", () => {
-    const store = emptyStore();
+  it("does not throw when assertion_created is replayed with duplicate id", () => {
+    const a = makeAssertion();
+    const store = { ...emptyStore(), assertions: [a] };
     expect(() =>
       applyEvent(store, {
-        type: "assertion_updated",
+        type: "assertion_created",
         ts: new Date().toISOString(),
-        payload: { id: "missing", before: {}, after: { confidence: 0.9 } },
+        payload: a,
       })
     ).not.toThrow();
-    expect(store.assertions).toHaveLength(0);
   });
 
   it("does not throw when patch_status_changed targets missing id", () => {

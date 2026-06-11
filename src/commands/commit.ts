@@ -15,17 +15,24 @@ export async function commit(_args: string[]) {
   console.log(`${approved.length} approved patch(es) ready to commit.\n`);
 
   for (const patch of approved) {
-    const idx = store.assertions.findIndex((a) => a.id === patch.assertion_id);
-    if (idx === -1) {
+    const fromAssertion = store.assertions.find((a) => a.id === patch.assertion_id);
+    if (!fromAssertion) {
       console.warn(`  Warning: assertion ${patch.assertion_id} not found, skipping ${patch.id}`);
       continue;
     }
 
-    const before: Assertion = { ...store.assertions[idx] };
-    const after: Assertion = { ...before, updated_at: now() };
+    // Build successor by applying the patch delta to the predecessor
+    const successor: Assertion = {
+      ...fromAssertion,
+      id: newId("asr"),
+      parent_id: fromAssertion.id,
+      root_id: fromAssertion.root_id,
+      version: fromAssertion.version + 1,
+      created_at: now(),
+    };
 
     for (const change of patch.changes) {
-      (after as unknown as Record<string, unknown>)[change.field] = change.to;
+      (successor as unknown as Record<string, unknown>)[change.field] = change.to;
     }
 
     const message = await prompt(`Commit message for ${patch.id} (or enter to use reason): `);
@@ -33,19 +40,18 @@ export async function commit(_args: string[]) {
     const commitRecord = {
       id: newId("cmt"),
       patch_id: patch.id,
-      assertion_id: patch.assertion_id,
-      snapshot_before: before,
-      snapshot_after: after,
+      from_assertion_id: fromAssertion.id,
+      to_assertion_id: successor.id,
       message: message.trim() || patch.reason,
       created_at: now(),
     };
 
-    store.assertions[idx] = after;
+    store.assertions.push(successor);
     patch.status = "committed";
     store.commits.push(commitRecord);
 
     console.log(`  Committed: ${commitRecord.id}`);
-    console.log(`  "${before.subject} ${before.relation} ${before.object}"`);
+    console.log(`  "${fromAssertion.subject} ${fromAssertion.relation} ${fromAssertion.object}" v${fromAssertion.version} → v${successor.version}`);
     for (const c of patch.changes) {
       console.log(`    ${c.field}: ${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`);
     }

@@ -23,20 +23,19 @@ describe("status --json", () => {
     await status(["--json"]);
 
     const out = JSON.parse(lines.join(""));
-    expect(out.assertions.active).toBe(0);
+    expect(out.assertions.current).toBe(0);
     expect(out.observations).toBe(0);
     expect(out.patches.pending).toBe(0);
     expect(out.commits).toBe(0);
     expect(out.actions.open).toBe(0);
   });
 
-  it("counts assertions by status", async () => {
+  it("counts current assertions", async () => {
+    const a1 = makeAssertion({ id: "a1", root_id: "a1" });
+    const a2 = makeAssertion({ id: "a2", root_id: "a2" });
+    const a3 = makeAssertion({ id: "a3", root_id: "a3", parent_id: "a2" });
     mockStore.current = makeStore({
-      assertions: [
-        makeAssertion({ id: "a1", status: "active" }),
-        makeAssertion({ id: "a2", status: "revised" }),
-        makeAssertion({ id: "a3", status: "invalidated" }),
-      ],
+      assertions: [a1, a2, a3],
     });
 
     const lines: string[] = [];
@@ -45,9 +44,9 @@ describe("status --json", () => {
     await status(["--json"]);
 
     const out = JSON.parse(lines.join(""));
-    expect(out.assertions.active).toBe(1);
-    expect(out.assertions.revised).toBe(1);
-    expect(out.assertions.invalidated).toBe(1);
+    // a2 is superseded by a3, so current = a1 + a3
+    expect(out.assertions.current).toBe(2);
+    expect(out.assertions.total).toBe(3);
   });
 
   it("counts patches by status", async () => {
@@ -110,9 +109,9 @@ describe("status --json", () => {
   it("includes active assertions sorted by confidence descending", async () => {
     mockStore.current = makeStore({
       assertions: [
-        makeAssertion({ id: "a1", confidence: 0.5 }),
-        makeAssertion({ id: "a2", confidence: 0.9 }),
-        makeAssertion({ id: "a3", confidence: 0.7 }),
+        makeAssertion({ id: "a1", root_id: "a1", confidence: 0.5 }),
+        makeAssertion({ id: "a2", root_id: "a2", confidence: 0.9 }),
+        makeAssertion({ id: "a3", root_id: "a3", confidence: 0.7 }),
       ],
     });
 
@@ -136,18 +135,18 @@ describe("status text output", () => {
 
   it("prints header counts", async () => {
     mockStore.current = makeStore({
-      assertions: [makeAssertion({ status: "active" })],
+      assertions: [makeAssertion()],
     });
     const lines = capture();
     await status([]);
-    expect(lines.some((l) => l.includes("1 active"))).toBe(true);
+    expect(lines.some((l) => l.includes("1 current"))).toBe(true);
   });
 
   it("prints active assertions sorted by confidence", async () => {
     mockStore.current = makeStore({
       assertions: [
-        makeAssertion({ id: "a1", confidence: 0.9, subject: "gold", relation: "will", object: "fall" }),
-        makeAssertion({ id: "a2", confidence: 0.5, subject: "fed", relation: "will", object: "hold" }),
+        makeAssertion({ id: "a1", root_id: "a1", confidence: 0.9, subject: "gold", relation: "will", object: "fall" }),
+        makeAssertion({ id: "a2", root_id: "a2", confidence: 0.5, subject: "fed", relation: "will", object: "hold" }),
       ],
     });
     const lines = capture();

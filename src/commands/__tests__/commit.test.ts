@@ -43,7 +43,8 @@ describe("commit", () => {
 
     await commit([]);
 
-    expect(writtenStore.current!.assertions[0].confidence).toBe(0.85);
+    const successor = writtenStore.current!.assertions.find((a) => a.parent_id === "asr_1");
+    expect(successor?.confidence).toBe(0.85);
   });
 
   it("marks patch as committed", async () => {
@@ -70,9 +71,8 @@ describe("commit", () => {
     const c = writtenStore.current!.commits[0];
     expect(c.id).toMatch(/^cmt_/);
     expect(c.patch_id).toBe("ptch_1");
-    expect(c.assertion_id).toBe("asr_1");
-    expect(c.snapshot_before.confidence).toBe(0.7);
-    expect(c.snapshot_after.confidence).toBe(0.85);
+    expect(c.from_assertion_id).toBe("asr_1");
+    expect(c.to_assertion_id).toMatch(/^asr_/);
   });
 
   it("uses prompt input as commit message", async () => {

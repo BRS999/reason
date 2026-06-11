@@ -11,9 +11,12 @@ function flag(args: string[], name: string): string | undefined {
 export async function patch(args: string[]) {
   const store = await readStore();
 
-  const active = store.assertions.filter((a) => a.status === "active");
+  // Patchable = tip of its lineage (no successor yet)
+  const active = store.assertions.filter(
+    (a) => !store.assertions.some(b => b.parent_id === a.id)
+  );
   if (active.length === 0) {
-    console.log("No active assertions. Use `reason assert` to add one first.");
+    console.log("No assertions to patch. Use `reason assert` to add one first.");
     return;
   }
 
@@ -55,11 +58,6 @@ export async function patch(args: string[]) {
     if (!isNaN(val) && val >= 0 && val <= 1) {
       changes.push({ field: "confidence", from: a.confidence, to: val });
     }
-  }
-
-  const newStatus = flag(args, "--status") ?? await prompt(`Status [current: ${a.status}] (active/revised/invalidated/archived or blank): `);
-  if (newStatus.trim() && newStatus.trim() !== a.status) {
-    changes.push({ field: "status", from: a.status, to: newStatus.trim() });
   }
 
   const appendEvidence = flag(args, "--append-evidence");

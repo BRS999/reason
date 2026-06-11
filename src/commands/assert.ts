@@ -23,16 +23,18 @@ export async function assert_(args: string[]) {
     process.exit(1);
   }
 
+  const id = newId("asr");
   const assertion = {
-    id: newId("asr"),
+    id,
+    parent_id: null,
+    root_id: id,
+    version: 1,
     subject: subject.trim(),
     relation: relation.trim(),
     object: object.trim(),
     confidence,
     evidence: evidence.trim(),
-    status: "active" as const,
     created_at: now(),
-    updated_at: now(),
   };
 
   store.assertions.push(assertion);

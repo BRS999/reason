@@ -37,6 +37,23 @@ describe("act --list", () => {
     expect(logs.some((l) => l.includes("No open actions"))).toBe(true);
   });
 
+  it("outputs json when --list --json", async () => {
+    const a = makeAssertion();
+    mockStore.current = makeStore({
+      assertions: [a],
+      actions: [makeAction({ assertion_id: a.id, status: "open" })],
+    });
+    const logs: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((s) => logs.push(s));
+
+    await act(["--list", "--json"]);
+
+    const out = JSON.parse(logs.join(""));
+    expect(Array.isArray(out)).toBe(true);
+    expect(out[0].id).toBe("act_1");
+    expect(out[0].assertion.id).toBe("asr_1");
+  });
+
   it("lists open actions", async () => {
     const a = makeAssertion();
     mockStore.current = makeStore({
@@ -102,7 +119,7 @@ describe("act record", () => {
 
     await act([]);
 
-    expect(logs.some((l) => l.includes("No active assertions"))).toBe(true);
+    expect(logs.some((l) => l.includes("No assertions"))).toBe(true);
     expect(writtenStore.current).toBeNull();
   });
 
@@ -144,6 +161,48 @@ describe("act record", () => {
     await act(["--assertion", a.id]);
 
     expect(writtenStore.current!.actions[0].type).toBe("other");
+  });
+
+  it("exits with usage error when no id and non-TTY stdin", async () => {
+    const a = makeAssertion();
+    mockStore.current = makeStore({ assertions: [a] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((s) => errors.push(String(s)));
+    const origIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+
+    await expect(act([])).rejects.toThrow("exit");
+    expect(errors.some((e) => e.includes("assertion ID required"))).toBe(true);
+
+    Object.defineProperty(process.stdin, "isTTY", { value: origIsTTY, configurable: true });
+    exitSpy.mockRestore();
+  });
+
+  it("displays metadata in --list output", async () => {
+    const a = makeAssertion();
+    mockStore.current = makeStore({
+      assertions: [a],
+      actions: [makeAction({ assertion_id: a.id, status: "open", metadata: { ticker: "GLD" } })],
+    });
+    const logs: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((s) => logs.push(String(s)));
+
+    await act(["--list"]);
+
+    expect(logs.some((l) => l.includes("ticker"))).toBe(true);
+  });
+
+  it("exits when assertion id not found", async () => {
+    const a = makeAssertion();
+    mockStore.current = makeStore({ assertions: [a] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((s) => errors.push(String(s)));
+
+    await expect(act(["asr_unknown", "--type", "trade", "--description", "test"])).rejects.toThrow("exit");
+    expect(errors.some((e) => e.includes("No assertion found"))).toBe(true);
+    exitSpy.mockRestore();
   });
 
   it("exits when description is blank", async () => {

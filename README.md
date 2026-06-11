@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="galaxy.png" height="200" alt="reason" />
+  <img src="icon.png" height="200" alt="reason" />
 
   <h1>reason</h1>
 
@@ -51,7 +51,7 @@ The store is an **append-only event log** (`events.jsonl`) with a materialised s
 | **Assertion** | A structured claim: `subject → relation → object` with a confidence (0–1) and supporting evidence. The atom of the worldview. |
 | **Observation** | A raw signal — a data point, article, measurement, or event. The raw material assertions are built from. |
 | **Patch** | A proposed revision to an assertion, triggered by new observations. Staged for review before taking effect. |
-| **Commit** | An approved patch applied to the worldview. Stores a full before/after snapshot — the assertion's revision history. |
+| **Commit** | An approved patch applied to the worldview. Creates a successor assertion (v2, v3, …) linked to its predecessor — building an immutable revision history. |
 | **Action** | Something done *because of* an assertion — a decision, experiment, trade, publication, or deliberate pass. |
 | **Outcome** | The result of an assertion being tested. Records what happened and how far off the confidence score was. |
 | **Calibration** | Aggregate accuracy of confidence scores over all outcomes — the system's measure of how well it knows what it knows. |
@@ -92,7 +92,7 @@ Before acting, an agent can query the worldview to understand current assertions
 
 ```sh
 # What do we currently assert about inflation?
-reason query inflation --json --explain
+reason query inflation --json
 
 # Full worldview state
 reason status --json
@@ -155,12 +155,13 @@ reason assert \
 
 ### The revision cycle
 
-1. **Assert** what you think is true, with confidence and supporting evidence
+1. **Assert** what you believe is true, with confidence and supporting evidence
 2. **Observe** new information as it arrives
-3. **Patch** assertions when observations change what is known
-4. **Review** and **commit** when the revision is warranted
-5. **Act** when an assertion leads to a concrete decision
-6. **Eval** when the assertion is tested — record what happened and how far off confidence was
+3. **Act** on an assertion when it drives a concrete decision, experiment, or publication
+4. **Eval** when the assertion is tested — record what happened and how far off confidence was
+5. **Patch** assertions when outcomes or new observations change what is known
+6. **Review** and **commit** when the revision is warranted — commit creates a successor (v2, v3, …) linked to its predecessor, preserving the full lineage
+7. **History** to inspect the complete version chain of any assertion
 
 Over time, `reason calibration` reveals whether 70% assertions are hitting 70% of the time — and which reasoning patterns are systematically miscalibrated.
 
@@ -185,9 +186,10 @@ Over time, `reason calibration` reveals whether 70% assertions are hitting 70% o
 | Command | What it does |
 |---------|-------------|
 | `reason status [--json]` | Current worldview — assertions, patches, open actions, calibration |
-| `reason query <kw> [--explain] [--json]` | Search across assertions, observations, commits, and actions |
+| `reason query <kw> [--json]` | Search across assertions, observations, commits, and actions |
 | `reason log` | Full commit history |
 | `reason diff [id]` | What changed in the last commit (or a specific one) |
+| `reason history <id> [--json]` | Full version lineage of an assertion — every version with outcomes and commit messages |
 | `reason calibration [--json]` | Accuracy breakdown by confidence bucket and relation type |
 | `reason failures [--json]` | Assertions that have been refuted — recurring reasoning errors |
 
@@ -197,6 +199,12 @@ Over time, `reason calibration` reveals whether 70% assertions are hitting 70% o
 |---------|-------------|
 | `reason act [id]` | Record an action taken because of an assertion |
 | `reason act --list [--json]` | Show all open actions |
+
+#### Maintenance
+
+| Command | What it does |
+|---------|-------------|
+| `reason migrate` | Upgrade an existing store to the latest format (idempotent, backs up before transforming) |
 
 ---
 

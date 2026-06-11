@@ -10,9 +10,13 @@ function flag(args: string[], name: string): string | undefined {
 export async function eval_(args: string[]) {
   const store = await readStore();
 
-  const active = store.assertions.filter((a) => a.status === "active" || a.status === "revised");
-  if (active.length === 0) {
-    console.log("No active assertions to evaluate.");
+  const eligible = store.assertions.filter((a) =>
+    !store.assertions.some(b => b.parent_id === a.id) &&
+    !store.outcomes.some(o => o.assertion_id === a.id)
+  );
+
+  if (eligible.length === 0) {
+    console.log("No assertions available to evaluate. All current assertions have already been evaluated or superseded.");
     return;
   }
 
@@ -24,34 +28,31 @@ export async function eval_(args: string[]) {
     console.error("  Find IDs with: reason status --json");
     process.exit(1);
   }
-  let assertion = active.find((a) => a.id === idArg);
+
+  const assertion = eligible.find((a) => a.id === idArg);
   if (!assertion) {
-    console.error(`No active assertion found with id: ${idArg}`);
+    if (store.outcomes.some(o => o.assertion_id === idArg)) {
+      console.error(`Assertion ${idArg} has already been evaluated. Use \`reason history ${idArg}\` to see its lineage, or \`reason patch ${idArg}\` to propose a successor.`);
+    } else {
+      console.error(`No evaluable assertion found with id: ${idArg}`);
+    }
     process.exit(1);
   }
-  if (assertion) {
-    console.log(`  ${assertion.subject} ${assertion.relation} ${assertion.object} @ ${assertion.confidence}`);
-  }
 
-  // Auto-resolve open actions on this assertion
+  console.log(`  ${assertion.subject} ${assertion.relation} ${assertion.object} @ ${assertion.confidence}  (v${assertion.version})`);
+
   const openActions = store.actions.filter(
-    (a) => a.assertion_id === assertion!.id && a.status === "open"
+    (a) => a.assertion_id === assertion.id && a.status === "open"
   );
-  const actionId: string | null = openActions.length > 0 ? openActions[0].id : null;
-  if (actionId) {
-    console.log(`  Auto-resolving action: ${openActions[0].description}`);
+  if (openActions.length > 0) {
+    for (const a of openActions) console.log(`  Auto-resolving action: ${a.description}`);
   }
 
-  const descriptionFlag = flag(args, "--description");
-  const description = descriptionFlag ?? await prompt("\nDescribe what happened: ");
-
-  const resultFlag = flag(args, "--result");
-  const resultRaw = resultFlag ?? await prompt("Result (c=confirmed / r=refuted / a=ambiguous): ");
+  const description = flag(args, "--description") ?? await prompt("\nDescribe what happened: ");
+  const resultRaw = flag(args, "--result") ?? await prompt("Result (c=confirmed / r=refuted / a=ambiguous): ");
 
   const resultMap: Record<string, "confirmed" | "refuted" | "ambiguous"> = {
-    c: "confirmed",
-    r: "refuted",
-    a: "ambiguous",
+    c: "confirmed", r: "refuted", a: "ambiguous",
   };
   const result = resultMap[resultRaw.trim().toLowerCase()];
   if (!result) {
@@ -65,7 +66,7 @@ export async function eval_(args: string[]) {
   const outcome = {
     id: newId("out"),
     assertion_id: assertion.id,
-    action_id: actionId,
+    action_id: openActions.length > 0 ? openActions[0].id : null,
     description: description.trim(),
     result,
     calibration_delta: Math.round(calibrationDelta * 1000) / 1000,
@@ -74,28 +75,23 @@ export async function eval_(args: string[]) {
 
   store.outcomes.push(outcome);
 
-  // resolve the linked action
-  if (actionId) {
-    const action = store.actions.find((a) => a.id === actionId);
-    if (action) {
-      action.status = "resolved";
-      action.outcome_id = outcome.id;
-      action.resolved_at = now();
-    }
+  const resolvedAt = now();
+  for (const action of openActions) {
+    action.status = "resolved";
+    action.outcome_id = outcome.id;
+    action.resolved_at = resolvedAt;
   }
 
   await writeStore(store);
 
   const calibrationMsg =
-    calibrationDelta > 0.2
-      ? "Underconfident — confidence was lower than reality."
-      : calibrationDelta < -0.2
-      ? "Overconfident — confidence was higher than reality."
-      : "Well-calibrated.";
+    calibrationDelta > 0.2 ? "Underconfident — confidence was lower than reality."
+    : calibrationDelta < -0.2 ? "Overconfident — confidence was higher than reality."
+    : "Well-calibrated.";
 
   console.log(`\nOutcome recorded: ${outcome.id}`);
   console.log(`  Result: ${result}`);
   console.log(`  Calibration delta: ${outcome.calibration_delta > 0 ? "+" : ""}${outcome.calibration_delta}  (${calibrationMsg})`);
-  if (actionId) console.log(`  Action resolved: ${actionId}`);
-  console.log("\nConsider running `reason patch` to revise confidence based on this outcome.");
+  for (const action of openActions) console.log(`  Action resolved: ${action.id}`);
+  console.log("\nRun `reason patch` to propose a successor assertion.");
 }

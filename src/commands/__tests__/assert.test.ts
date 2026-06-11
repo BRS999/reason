@@ -38,7 +38,8 @@ describe("assert_", () => {
     expect(a.object).toBe("hold rates");
     expect(a.confidence).toBe(0.75);
     expect(a.evidence).toBe("dot plot unchanged");
-    expect(a.status).toBe("active");
+    expect(a.version).toBe(1);
+    expect(a.parent_id).toBeNull();
     expect(a.id).toMatch(/^asr_/);
   });
 

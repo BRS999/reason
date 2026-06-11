@@ -44,9 +44,12 @@ export async function act(args: string[]) {
     return;
   }
 
-  const active = store.assertions.filter((a) => a.status === "active" || a.status === "revised");
+  // Actionable = tip of lineage (no successor)
+  const active = store.assertions.filter(
+    (a) => !store.assertions.some(b => b.parent_id === a.id)
+  );
   if (active.length === 0) {
-    console.log("No active assertions. Use `reason assert` to add one first.");
+    console.log("No assertions. Use `reason assert` to add one first.");
     return;
   }
 
@@ -61,7 +64,7 @@ export async function act(args: string[]) {
   }
   let assertion = idArg ? active.find((a) => a.id === idArg) : undefined;
   if (idArg && !assertion) {
-    console.error(`No active assertion found with id: ${idArg}`);
+    console.error(`No assertion found with id: ${idArg}`);
     process.exit(1);
   }
   if (!assertion) {
