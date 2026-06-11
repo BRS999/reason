@@ -74,17 +74,19 @@ describe("eval_", () => {
     expect(writtenStore.current!.outcomes[0].calibration_delta).toBe(-0.1);
   });
 
-  it("auto-resolves the first open action on the assertion", async () => {
+  it("auto-resolves all open actions on the assertion", async () => {
     const a = makeAssertion();
-    const action = makeAction({ assertion_id: a.id });
-    mockStore.current = makeStore({ assertions: [a], actions: [action] });
+    const action1 = makeAction({ id: "act_1", assertion_id: a.id, description: "trade" });
+    const action2 = makeAction({ id: "act_2", assertion_id: a.id, description: "publish" });
+    mockStore.current = makeStore({ assertions: [a], actions: [action1, action2] });
 
     await eval_([a.id, "--description", "confirmed", "--result", "c"]);
 
-    const resolvedAction = writtenStore.current!.actions[0];
-    expect(resolvedAction.status).toBe("resolved");
-    expect(resolvedAction.outcome_id).toMatch(/^out_/);
-    expect(resolvedAction.resolved_at).not.toBeNull();
+    for (const act of writtenStore.current!.actions) {
+      expect(act.status).toBe("resolved");
+      expect(act.outcome_id).toMatch(/^out_/);
+      expect(act.resolved_at).not.toBeNull();
+    }
   });
 
   it("does nothing when no active assertions", async () => {
