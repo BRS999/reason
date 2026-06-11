@@ -281,6 +281,80 @@ describe("readStore / writeStore", () => {
   });
 });
 
+describe("writeStore deduplication", () => {
+  it("does not duplicate events when writeStore is called twice with the same data", async () => {
+    const { initStore, readStore, writeStore } = await freshStore();
+    await initStore();
+    const store = await readStore();
+    store.assertions.push({
+      id: "asr_dedup",
+      parent_id: null,
+      root_id: "asr_dedup",
+      version: 1,
+      subject: "dedup",
+      relation: "is",
+      object: "tested",
+      confidence: 0.5,
+      evidence: "e",
+      created_at: new Date().toISOString(),
+    });
+    store.observations.push({ id: "obs_dedup", content: "obs", source: "test", created_at: new Date().toISOString() });
+    store.patches.push({ id: "ptch_dedup", assertion_id: "asr_dedup", observation_id: null, changes: [], reason: "r", status: "pending", created_at: new Date().toISOString() });
+    store.commits.push({ id: "cmt_dedup", patch_id: "ptch_dedup", from_assertion_id: "asr_dedup", to_assertion_id: "asr_dedup", message: "m", created_at: new Date().toISOString() });
+    store.actions.push({ id: "act_dedup", assertion_id: "asr_dedup", type: "trade", description: "d", metadata: {}, status: "open", outcome_id: null, created_at: new Date().toISOString(), resolved_at: null });
+    store.outcomes.push({ id: "out_dedup", assertion_id: "asr_dedup", action_id: "act_dedup", description: "d", result: "confirmed", calibration_delta: 0.1, created_at: new Date().toISOString() });
+    await writeStore(store);
+    await writeStore(store); // second write — should add no new events
+
+    const { readFileSync } = await import("fs");
+    const lines = readFileSync(join(tmpDir, ".reason", "events.jsonl"), "utf8")
+      .trim().split("\n").filter(Boolean);
+    // 6 entity types → 6 events, not 12
+    expect(lines).toHaveLength(6);
+  });
+
+  it("writes patch_status_changed when patch status changes", async () => {
+    const { initStore, readStore, writeStore } = await freshStore();
+    await initStore();
+    const store = await readStore();
+    const patch = { id: "ptch_sc", assertion_id: "asr_1", observation_id: null, changes: [], reason: "r", status: "pending" as const, created_at: new Date().toISOString() };
+    store.patches.push(patch);
+    await writeStore(store);
+
+    vi.resetModules();
+    const { readStore: rs2, writeStore: ws2 } = await import("../store.ts");
+    const store2 = await rs2();
+    store2.patches[0].status = "approved";
+    await ws2(store2);
+
+    const { readFileSync } = await import("fs");
+    const lines = readFileSync(join(tmpDir, ".reason", "events.jsonl"), "utf8")
+      .trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as { type: string });
+    expect(lines.some((e) => e.type === "patch_status_changed")).toBe(true);
+  });
+
+  it("writes action_status_changed when action status changes", async () => {
+    const { initStore, readStore, writeStore } = await freshStore();
+    await initStore();
+    const store = await readStore();
+    const action = { id: "act_sc", assertion_id: "asr_1", type: "trade", description: "d", metadata: {}, status: "open" as const, outcome_id: null, created_at: new Date().toISOString(), resolved_at: null };
+    store.actions.push(action);
+    await writeStore(store);
+
+    vi.resetModules();
+    const { readStore: rs2, writeStore: ws2 } = await import("../store.ts");
+    const store2 = await rs2();
+    store2.actions[0].status = "resolved";
+    store2.actions[0].resolved_at = new Date().toISOString();
+    await ws2(store2);
+
+    const { readFileSync } = await import("fs");
+    const lines = readFileSync(join(tmpDir, ".reason", "events.jsonl"), "utf8")
+      .trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as { type: string });
+    expect(lines.some((e) => e.type === "action_status_changed")).toBe(true);
+  });
+});
+
 describe("isInitialized", () => {
   it("returns false before init", async () => {
     const { isInitialized } = await freshStore();

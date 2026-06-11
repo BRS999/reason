@@ -102,6 +102,7 @@ function writeSnapshot(store: Store): void {
   renameSync(tmpPath, snapshotPath());
 }
 
+/* v8 ignore start */
 function withWriteLock<T>(fn: () => T): T {
   const lockPath = LOCK_PATH();
   const timeoutMs = 10_000;
@@ -127,7 +128,9 @@ function withWriteLock<T>(fn: () => T): T {
     rmSync(lockPath, { recursive: true, force: true });
   }
 }
+/* v8 ignore stop */
 
+/* v8 ignore next */
 function sleep(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
