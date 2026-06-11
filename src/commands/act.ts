@@ -54,6 +54,11 @@ export async function act(args: string[]) {
 
   // Resolve assertion
   const idArg = flag(args, "--assertion") ?? (args[0] && !args[0].startsWith("--") ? args[0] : undefined);
+  if (!idArg && !process.stdin.isTTY) {
+    console.error("Error: assertion ID required. Usage: reason act <assertion-id> --type <type> --description <desc>");
+    console.error("  Find IDs with: reason status --json");
+    process.exit(1);
+  }
   let assertion = idArg ? active.find((a) => a.id === idArg) : undefined;
   if (idArg && !assertion) {
     console.error(`No active assertion found with id: ${idArg}`);

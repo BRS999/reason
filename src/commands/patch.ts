@@ -22,48 +22,44 @@ export async function patch(args: string[]) {
 
   console.log("Propose an epistemic patch\n");
 
+  if (!idArg && !process.stdin.isTTY) {
+    console.error("Error: assertion ID required. Usage: reason patch <assertion-id> [--confidence X] [--status S] [--append-evidence E] [--reason R]");
+    console.error("  Find IDs with: reason status --json");
+    process.exit(1);
+  }
   let assertion = idArg ? active.find((a) => a.id === idArg) : undefined;
   if (idArg && !assertion) {
     console.error(`No active assertion found with id: ${idArg}`);
     process.exit(1);
   }
   if (!assertion) {
-    assertion = await selectFrom(active, (a) => `${a.id}  ${a.subject} ${a.relation} ${a.object} @ ${a.confidence}`, "Target assertion");
+    assertion = await selectFrom(active, (a: typeof active[0]) => `${a.id}  ${a.subject} ${a.relation} ${a.object} @ ${a.confidence}`, "Target assertion");
   } else {
     displayAssertion(assertion);
   }
+
+  const a = assertion;
 
   // Optionally link to an observation
   const obsFlag = flag(args, "--observation");
   let observationId: string | null = obsFlag ?? null;
 
-  if (!obsFlag && store.observations.length > 0) {
-    const linkObs = await prompt("\nLink to an observation? (y/n): ");
-    if (linkObs.trim().toLowerCase() === "y") {
-      const obs = await selectFrom(
-        store.observations.slice(-10).reverse(),
-        (o) => `${o.id}  ${o.content.slice(0, 60)}`,
-        "Select observation"
-      );
-      observationId = obs.id;
-    }
-  }
 
   console.log("\nWhat would you like to change? (leave blank to skip)");
 
   const changes: PatchChange[] = [];
 
-  const newConfidenceRaw = flag(args, "--confidence") ?? await prompt(`Confidence [current: ${assertion.confidence}]: `);
+  const newConfidenceRaw = flag(args, "--confidence") ?? await prompt(`Confidence [current: ${a.confidence}]: `);
   if (newConfidenceRaw.trim()) {
     const val = parseFloat(newConfidenceRaw);
     if (!isNaN(val) && val >= 0 && val <= 1) {
-      changes.push({ field: "confidence", from: assertion.confidence, to: val });
+      changes.push({ field: "confidence", from: a.confidence, to: val });
     }
   }
 
-  const newStatus = flag(args, "--status") ?? await prompt(`Status [current: ${assertion.status}] (active/revised/invalidated/archived or blank): `);
-  if (newStatus.trim() && newStatus.trim() !== assertion.status) {
-    changes.push({ field: "status", from: assertion.status, to: newStatus.trim() });
+  const newStatus = flag(args, "--status") ?? await prompt(`Status [current: ${a.status}] (active/revised/invalidated/archived or blank): `);
+  if (newStatus.trim() && newStatus.trim() !== a.status) {
+    changes.push({ field: "status", from: a.status, to: newStatus.trim() });
   }
 
   const appendEvidence = flag(args, "--append-evidence");
@@ -72,8 +68,8 @@ export async function patch(args: string[]) {
   if (newEvidence.trim()) {
     const updated = replaceEvidence
       ? newEvidence.trim()
-      : assertion.evidence ? `${assertion.evidence}\n${newEvidence.trim()}` : newEvidence.trim();
-    changes.push({ field: "evidence", from: assertion.evidence, to: updated });
+      : a.evidence ? `${a.evidence}\n${newEvidence.trim()}` : newEvidence.trim();
+    changes.push({ field: "evidence", from: a.evidence, to: updated });
   }
 
   if (changes.length === 0) {
@@ -89,7 +85,7 @@ export async function patch(args: string[]) {
 
   const patch = {
     id: newId("ptch"),
-    assertion_id: assertion.id,
+    assertion_id: a.id,
     observation_id: observationId,
     changes,
     reason: reason.trim(),
