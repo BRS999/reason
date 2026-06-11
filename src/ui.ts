@@ -72,6 +72,5 @@ export function displayAssertion(a: Assertion) {
   console.log(`\n  id:         ${a.id}`);
   console.log(`  claim:      ${a.subject} ${a.relation} ${a.object}`);
   console.log(`  confidence: ${a.confidence}`);
-  console.log(`  status:     ${a.status}`);
   console.log(`  evidence:   ${a.evidence || "(none)"}`);
 }

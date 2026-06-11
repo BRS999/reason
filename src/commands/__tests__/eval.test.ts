@@ -94,7 +94,7 @@ describe("eval_", () => {
 
     await eval_([]);
 
-    expect(logs.some((l) => l.includes("No active assertions"))).toBe(true);
+    expect(logs.some((l) => l.includes("No assertions"))).toBe(true);
     expect(writtenStore.current).toBeNull();
   });
 
