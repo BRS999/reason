@@ -113,7 +113,7 @@ Inspect:
   history <id>                 Full version lineage of an assertion  [--json]
   query <keyword>              Search assertions, observations, commits  [--json] [--explain]
   calibration                  Calibration report across all outcomes  [--json]
-  failures                     Assertions with refuted outcomes  [--json]
+  failures                     Assertions with refuted outputs  [--json]
 
 Maintenance:
   migrate                      Upgrade store to latest format (backs up first)
