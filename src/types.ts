@@ -1,15 +1,16 @@
-export type AssertionStatus = "active" | "revised" | "invalidated" | "archived";
-
 export interface Assertion {
   id: string;
+  parent_id: string | null;
+  root_id: string;
+  version: number;
+
   subject: string;
   relation: string;
   object: string;
   confidence: number; // 0.0 - 1.0
-  evidence: string;   // free-text summary
-  status: AssertionStatus;
+  evidence: string;
+
   created_at: string;
-  updated_at: string;
 }
 
 export interface Observation {
@@ -31,7 +32,7 @@ export interface EpistemicPatch {
   id: string;
   assertion_id: string;
   observation_id: string | null;
-  changes: PatchChange[]; // JSON array
+  changes: PatchChange[];
   reason: string;
   status: PatchStatus;
   created_at: string;
@@ -40,9 +41,8 @@ export interface EpistemicPatch {
 export interface Commit {
   id: string;
   patch_id: string;
-  assertion_id: string;
-  snapshot_before: Assertion; // full assertion snapshot
-  snapshot_after: Assertion;
+  from_assertion_id: string;
+  to_assertion_id: string;
   message: string;
   created_at: string;
 }
@@ -53,7 +53,7 @@ export interface Outcome {
   action_id: string | null;
   description: string;
   result: "confirmed" | "refuted" | "ambiguous";
-  calibration_delta: number; // how far off was confidence? negative = overconfident
+  calibration_delta: number;
   created_at: string;
 }
 
@@ -62,11 +62,14 @@ export type ActionStatus = "open" | "resolved" | "cancelled";
 export interface Action {
   id: string;
   assertion_id: string;
-  type: string;                      // free text — e.g. "decision", "experiment", "pass", "publish"
+  type: string;
   description: string;
-  metadata: Record<string, unknown>; // flexible key/value context
+  metadata: Record<string, unknown>;
   status: ActionStatus;
-  outcome_id: string | null;         // set when resolved via eval
+  outcome_id: string | null;
   created_at: string;
   resolved_at: string | null;
 }
+
+// Derived state — computed from the graph, never stored
+export type AssertionState = "current" | "under_test" | "evaluated" | "superseded";

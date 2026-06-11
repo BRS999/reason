@@ -15,6 +15,7 @@ import { status } from "./commands/status.ts";
 import { calibration } from "./commands/calibration.ts";
 import { failures } from "./commands/failures.ts";
 import { act } from "./commands/act.ts";
+import { history } from "./commands/history.ts";
 
 const [, , cmd, ...args] = process.argv;
 
@@ -33,6 +34,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   calibration,
   failures,
   act,
+  history,
 };
 
 async function main() {
@@ -82,6 +84,7 @@ Commands:
   calibration Show calibration report across all outcomes  [--json]
   failures    Show repeatedly refuted assertions           [--json]
   act [id]    Record an action taken on an assertion       [--list]
+  history <id> Show full lineage of an assertion            [--json]
 `);
 }
 

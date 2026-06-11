@@ -3,48 +3,54 @@ import { readStore } from "../db/store.ts";
 export async function log(args: string[]) {
   const store = await readStore();
   const json = args.includes("--json");
-
-  if (json) {
-    console.log(JSON.stringify(
-      [...store.commits].reverse().map((c) => ({
-        id: c.id,
-        date: c.created_at,
-        message: c.message,
-        assertion_id: c.assertion_id,
-        claim: `${c.snapshot_before.subject} ${c.snapshot_before.relation} ${c.snapshot_before.object}`,
-        changes: (["confidence", "status", "evidence"] as const)
-          .filter((f) => JSON.stringify(c.snapshot_before[f]) !== JSON.stringify(c.snapshot_after[f]))
-          .map((f) => ({ field: f, from: c.snapshot_before[f], to: c.snapshot_after[f] })),
-      })),
-      null, 2
-    ));
-    return;
-  }
+  const byId = new Map(store.assertions.map(a => [a.id, a]));
 
   if (store.commits.length === 0) {
     console.log("No commits yet.");
     return;
   }
 
-  const commits = [...store.commits].reverse();
+  if (json) {
+    console.log(JSON.stringify(
+      [...store.commits].reverse().map((c) => {
+        const from = byId.get(c.from_assertion_id);
+        const to = byId.get(c.to_assertion_id);
+        return {
+          id: c.id,
+          date: c.created_at,
+          message: c.message,
+          from_assertion_id: c.from_assertion_id,
+          to_assertion_id: c.to_assertion_id,
+          claim: from ? `${from.subject} ${from.relation} ${from.object}` : c.from_assertion_id,
+          version: to ? `v${to.version}` : undefined,
+          changes: store.patches
+            .filter(p => p.id === c.patch_id)
+            .flatMap(p => p.changes),
+        };
+      }),
+      null, 2
+    ));
+    return;
+  }
 
-  for (const c of commits) {
-    const before = c.snapshot_before;
-    const after = c.snapshot_after;
+  for (const c of [...store.commits].reverse()) {
+    const from = byId.get(c.from_assertion_id);
+    const to = byId.get(c.to_assertion_id);
+    const claim = from ? `${from.subject} ${from.relation} ${from.object}` : c.from_assertion_id;
+    const patch = store.patches.find(p => p.id === c.patch_id);
 
     console.log(`\ncommit ${c.id}`);
-    console.log(`Date:   ${c.created_at}`);
+    console.log(`Date:    ${c.created_at}`);
+    if (from && to) console.log(`Version: v${from.version} → v${to.version}`);
     console.log(`\n    ${c.message}\n`);
-    console.log(`    Assertion: ${before.subject} ${before.relation} ${before.object}`);
+    console.log(`    Assertion: ${claim}`);
 
-    // Show what changed
-    const fields = ["confidence", "status", "evidence"] as const;
-    for (const f of fields) {
-      if (JSON.stringify(before[f]) !== JSON.stringify(after[f])) {
-        if (f === "evidence") {
-          console.log(`    ${f}: [updated]`);
+    if (patch) {
+      for (const ch of patch.changes) {
+        if (ch.field === "evidence") {
+          console.log(`    evidence: [updated]`);
         } else {
-          console.log(`    ${f}: ${before[f]} → ${after[f]}`);
+          console.log(`    ${ch.field}: ${JSON.stringify(ch.from)} → ${JSON.stringify(ch.to)}`);
         }
       }
     }
