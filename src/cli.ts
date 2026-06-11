@@ -92,7 +92,8 @@ Revise and commit:
     --reason <text>            Rationale for the change
   review                       Approve or reject pending patches
     --approve-all              Auto-approve all pending patches
-  commit                       Apply approved patches (prompts for message)
+  commit                       Apply approved patches
+    --message <text>           Commit message (skips prompt if provided)
 
 Act and evaluate:
   act <id>                     Record an action taken on an assertion

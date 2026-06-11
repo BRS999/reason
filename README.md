@@ -178,7 +178,7 @@ Over time, `reason calibration` reveals whether 70% assertions are hitting 70% o
 | `reason observe` | Record a raw observation |
 | `reason patch <id>` | Propose a revision to an existing assertion |
 | `reason review [--approve-all]` | Approve or reject pending patches |
-| `reason commit` | Apply approved patches and write commit records |
+| `reason commit [--message <text>]` | Apply approved patches and write commit records |
 | `reason eval <id>` | Record an outcome and measure calibration |
 
 #### Inspection

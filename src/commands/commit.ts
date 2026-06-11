@@ -3,7 +3,12 @@ import { newId, now } from "../db/id.ts";
 import { prompt } from "../ui.ts";
 import type { Assertion } from "../types.ts";
 
-export async function commit(_args: string[]) {
+function flag(args: string[], name: string): string | undefined {
+  const i = args.indexOf(name);
+  return i !== -1 && i + 1 < args.length ? args[i + 1] : undefined;
+}
+
+export async function commit(args: string[]) {
   const store = await readStore();
 
   const approved = store.patches.filter((p) => p.status === "approved");
@@ -35,7 +40,8 @@ export async function commit(_args: string[]) {
       (successor as unknown as Record<string, unknown>)[change.field] = change.to;
     }
 
-    const message = await prompt(`Commit message for ${patch.id} (or enter to use reason): `);
+    const messageFlag = flag(args, "--message");
+    const message = messageFlag ?? await prompt(`Commit message for ${patch.id} (or enter to use reason): `);
 
     const commitRecord = {
       id: newId("cmt"),
