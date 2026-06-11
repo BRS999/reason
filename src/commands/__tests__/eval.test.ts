@@ -157,4 +157,36 @@ describe("eval_", () => {
 
     exitSpy.mockRestore();
   });
+
+  it("exits with already-evaluated message when id is evaluated but other assertions are eligible", async () => {
+    const evaluated = makeAssertion({ id: "asr_1", root_id: "asr_1" });
+    const eligible = makeAssertion({ id: "asr_2", root_id: "asr_2" });
+    const outcome = { id: "out_1", assertion_id: evaluated.id, action_id: null, description: "done", result: "confirmed" as const, calibration_delta: 0.3, created_at: "2026-01-01T00:00:00.000Z" };
+    mockStore.current = makeStore({ assertions: [evaluated, eligible], outcomes: [outcome] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((s) => errors.push(String(s)));
+
+    await expect(
+      eval_([evaluated.id, "--description", "second", "--result", "c"])
+    ).rejects.toThrow("exit");
+
+    expect(errors.some((e) => e.includes("already been evaluated"))).toBe(true);
+    exitSpy.mockRestore();
+  });
+
+  it("exits with generic message when id is not found", async () => {
+    const a = makeAssertion();
+    mockStore.current = makeStore({ assertions: [a] });
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => { throw new Error("exit"); });
+    const errors: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((s) => errors.push(String(s)));
+
+    await expect(
+      eval_(["asr_unknown", "--description", "desc", "--result", "c"])
+    ).rejects.toThrow("exit");
+
+    expect(errors.some((e) => e.includes("No evaluable assertion"))).toBe(true);
+    exitSpy.mockRestore();
+  });
 });

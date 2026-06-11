@@ -261,7 +261,23 @@ describe("readStore / writeStore", () => {
 
   it("throws when no repository exists", async () => {
     const { readStore } = await freshStore();
-    await expect(readStore()).rejects.toThrow("reason init" );
+    await expect(readStore()).rejects.toThrow("reason init");
+  });
+
+  it("throws with migration hint when store has old status field", async () => {
+    const { initStore } = await freshStore();
+    await initStore();
+
+    const { writeFileSync } = await import("fs");
+    const oldStore = {
+      assertions: [{ id: "asr_1", subject: "x", relation: "is", object: "y", confidence: 0.5, evidence: "e", status: "active", created_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z" }],
+      observations: [], patches: [], commits: [], outcomes: [], actions: [],
+    };
+    writeFileSync(join(tmpDir, ".reason", "snapshot.json"), JSON.stringify(oldStore), "utf8");
+
+    vi.resetModules();
+    const { readStore: readStore2 } = await import("../store.ts");
+    await expect(readStore2()).rejects.toThrow("reason migrate");
   });
 });
 
